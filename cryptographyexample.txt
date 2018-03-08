@@ -1,0 +1,168 @@
+// package main
+
+// import (
+// 	"bufio"
+// 	"bytes"
+// 	"crypto/aes"
+// 	"crypto/cipher"
+// 	"crypto/rand"
+// 	"encoding/base64"
+// 	"errors"
+// 	"io"
+// 	"os"
+// 	"strings"
+// )
+
+// func main() {
+
+// 	mode, infile, outfile := os.Args[1], os.Args[2], os.Args[3]
+
+// 	// setup encryption stuff
+// 	key := []byte("LKHlhb899Y09olUi")
+
+// 	// open file to encrypt
+// 	fileIn, err := os.Open(infile)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	defer func() {
+// 		if err := fileIn.Close(); err != nil {
+// 			panic(err)
+// 		}
+// 	}()
+// 	reader := bufio.NewReader(fileIn)
+
+// 	fileOut, err := os.Create(outfile)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+// 	defer func() {
+// 		if err := fileOut.Close(); err != nil {
+// 			panic(err)
+// 		}
+// 	}()
+// 	writer := bufio.NewWriter(fileOut)
+
+// 	buf := make([]byte, 1024)
+// 	for {
+// 		n, err := reader.Read(buf)
+// 		if err != nil && err != io.EOF {
+// 			panic(err)
+// 		}
+
+// 		if n == 0 {
+// 			break
+// 		}
+
+// 		var data string
+
+// 		if mode == "encrypt" {
+// 			data, _ = encrypt(key, string(buf[:n]))
+// 		} else if mode == "decrypt" {
+// 			data, _ = decrypt(key, string(buf[:n]))
+// 		} else {
+// 			panic("incorrect mode")
+// 		}
+// 		// encrypt buffer contents
+
+// 		if _, err := writer.Write([]byte(data)); err != nil {
+// 			panic(err)
+// 		}
+// 	}
+
+// 	if err = writer.Flush(); err != nil {
+// 		panic(err)
+// 	}
+// }
+
+// func encrypt(key []byte, text string) (string, error) {
+// 	block, err := aes.NewCipher(key)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	msg := pad([]byte(text))
+// 	ciphertext := make([]byte, aes.BlockSize+len(msg))
+// 	iv := ciphertext[:aes.BlockSize]
+// 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+// 		return "", err
+// 	}
+
+// 	/* CFB mode (cipher feedback) */
+// 	cfb := cipher.NewCFBEncrypter(block, iv)
+// 	cfb.XORKeyStream(ciphertext[aes.BlockSize:], []byte(msg))
+
+// 	/* CBC mode (cipher block chain) */
+// 	// cbc := cipher.NewCBCEncrypter(block, iv)
+// 	// cbc.CryptBlocks(ciphertext[aes.BlockSize:], []byte(msg))
+
+// 	finalMsg := removeBase64Padding(base64.URLEncoding.EncodeToString(ciphertext))
+
+// 	return finalMsg, nil
+// }
+
+// func decrypt(key []byte, text string) (string, error) {
+// 	block, err := aes.NewCipher(key)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	decodedMsg, err := base64.URLEncoding.DecodeString(addBase64Padding(text))
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	if (len(decodedMsg) % aes.BlockSize) != 0 {
+// 		return "", errors.New("blocksize must be a multiple of decoded message length")
+// 	}
+
+// 	iv := decodedMsg[:aes.BlockSize]
+// 	msg := decodedMsg[aes.BlockSize:]
+
+// 	/* CFB mode (cipher feedback) */
+// 	cfb := cipher.NewCFBDecrypter(block, iv)
+// 	cfb.XORKeyStream(msg, msg)
+
+// 	/* CBC mode (cipher block chain) */
+// 	// cbc := cipher.NewCBCDecrypter(block, iv)
+// 	// cbc.CryptBlocks(msg, msg)
+
+// 	unpadMsg, err := unpad(msg)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	return string(unpadMsg), nil
+// }
+
+// func addBase64Padding(value string) string {
+// 	m := len(value) % 4
+// 	if m != 0 {
+// 		value += strings.Repeat("=", 4-m)
+// 	}
+
+// 	return value
+// }
+
+// func removeBase64Padding(value string) string {
+// 	return strings.Replace(value, "=", "", -1)
+// }
+
+// func pad(src []byte) []byte {
+// 	padding := aes.BlockSize - len(src)%aes.BlockSize
+// 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+// 	return append(src, padtext...)
+// }
+
+// func unpad(src []byte) ([]byte, error) {
+// 	length := len(src)
+// 	unpadding := int(src[length-1])
+
+// 	if unpadding > length {
+// 		return nil, errors.New("unpad error. This could happen when incorrect encryption key is used")
+// 	}
+
+// 	return src[:(length - unpadding)], nil
+// }

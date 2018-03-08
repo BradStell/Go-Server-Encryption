@@ -1,0 +1,4 @@
+cam: black diamond
+size: 3
+color: yellow
+price: $75
